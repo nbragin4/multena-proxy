@@ -10,6 +10,7 @@ ENV TZ=/etc/localtime                  \
     LC_ALL=en_US.UTF-8
 
 RUN adduser -S appuser -u 1000 -G root
+RUN cp /etc/ssl/certs/ca-certificates.crt /etc/ssl/ca/ca-certificates.crt
 
 COPY multena-proxy /usr/local/bin/multena-proxy
 USER 1000
