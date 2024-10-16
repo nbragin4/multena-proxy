@@ -1,8 +1,16 @@
-# Use Alpine for CA certificates
-FROM alpine:latest AS certs
+FROM alpine:3.19.1 as runtime
 
-FROM scratch
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/ca/ca-certificates.crt
+RUN set -x \
+  && apk add --update --no-cache ca-certificates tzdata \
+  && echo 'Etc/UTC' > /etc/timezone \
+  && update-ca-certificates
+
+ENV TZ=/etc/localtime                  \
+    LANG=en_US.utf8                    \
+    LC_ALL=en_US.UTF-8
+
+RUN adduser -S appuser -u 1000 -G root
+
 COPY multena-proxy /usr/local/bin/multena-proxy
-USER nonroot:nonroot
+USER 1000
 ENTRYPOINT ["multena-proxy"]
