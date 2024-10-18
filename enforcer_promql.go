@@ -17,7 +17,7 @@ type PromQLEnforcer struct{}
 // Enforce enhances a given PromQL query string with additional label matchers,
 // ensuring that the query complies with the allowed tenant labels and specified label match.
 // It returns the enhanced query or an error if the query cannot be parsed or is not compliant.
-func (PromQLEnforcer) Enforce(query string, allowedTenantLabels map[string]bool, labelMatch string) (string, error) {
+func (PromQLEnforcer) Enforce(query string, allowedTenantLabels LabelType, labelMatch string) (string, error) {
 	log.Trace().Str("function", "enforcer").Str("query", query).Msg("input")
 	if query == "" {
 		operator := "="
@@ -74,7 +74,7 @@ func extractLabelsAndValues(expr parser.Expr) (map[string]string, error) {
 // enforceLabels checks if provided query labels comply with allowed tenant labels and a specified label match.
 // If the labels comply, it returns them (or all allowed tenant labels if not specified in the query) and nil.
 // If not, it returns an error indicating the non-compliant label.
-func enforceLabels(queryLabels map[string]string, allowedTenantLabels map[string]bool, labelMatch string) ([]string, error) {
+func enforceLabels(queryLabels map[string]string, allowedTenantLabels LabelType, labelMatch string) ([]string, error) {
 	if _, ok := queryLabels[labelMatch]; ok {
 		ok, tenantLabels := checkLabels(queryLabels, allowedTenantLabels, labelMatch)
 		if !ok {
@@ -88,7 +88,7 @@ func enforceLabels(queryLabels map[string]string, allowedTenantLabels map[string
 
 // checkLabels validates if query labels are present in the allowed tenant labels and returns them.
 // If a query label is not allowed, it returns false and the non-compliant label.
-func checkLabels(queryLabels map[string]string, allowedTenantLabels map[string]bool, labelMatch string) (bool, []string) {
+func checkLabels(queryLabels map[string]string, allowedTenantLabels LabelType, labelMatch string) (bool, []string) {
 	splitQueryLabels := strings.Split(queryLabels[labelMatch], "|")
 	for _, queryLabel := range splitQueryLabels {
 		_, ok := allowedTenantLabels[queryLabel]

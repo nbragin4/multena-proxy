@@ -8,7 +8,7 @@ import (
 
 func TestGetLabelsCM(t *testing.T) {
 	cmh := ConfigMapHandler{
-		labels: map[string]map[string]bool{
+		labels: LabelConfigType{
 			"user1":      {"u1": true, "u2": true},
 			"user2":      {"u3": true, "u4": true},
 			"group1":     {"g1": true, "g2": true},
@@ -21,14 +21,14 @@ func TestGetLabelsCM(t *testing.T) {
 		name     string
 		username string
 		groups   []string
-		expected map[string]bool
+		expected LabelType
 		skip     bool
 	}{
 		{
 			name:     "User with groups",
 			username: "user1",
 			groups:   []string{"group1", "group2"},
-			expected: map[string]bool{
+			expected: LabelType{
 				"u1": true,
 				"u2": true,
 				"g1": true,
@@ -41,7 +41,7 @@ func TestGetLabelsCM(t *testing.T) {
 			name:     "User without groups",
 			username: "user2",
 			groups:   []string{},
-			expected: map[string]bool{
+			expected: LabelType{
 				"u3": true,
 				"u4": true,
 			},
@@ -50,7 +50,7 @@ func TestGetLabelsCM(t *testing.T) {
 			name:     "Non-existent user",
 			username: "user3",
 			groups:   []string{"group1"},
-			expected: map[string]bool{
+			expected: LabelType{
 				"g1": true,
 				"g2": true,
 			},
@@ -59,7 +59,7 @@ func TestGetLabelsCM(t *testing.T) {
 			name:     "Non-existent group",
 			username: "user1",
 			groups:   []string{"group3"},
-			expected: map[string]bool{
+			expected: LabelType{
 				"u1": true,
 				"u2": true,
 			},

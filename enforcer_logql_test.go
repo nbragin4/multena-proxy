@@ -11,28 +11,28 @@ func TestLogqlEnforcer(t *testing.T) {
 	tests := []struct {
 		name           string
 		query          string
-		tenantLabels   map[string]bool
+		tenantLabels   LabelType
 		expectedResult string
 		expectErr      bool
 	}{
 		{
 			name:           "Valid query and tenant labels",
 			query:          "{kubernetes_namespace_name=\"test\"}",
-			tenantLabels:   map[string]bool{"test": true},
+			tenantLabels:   LabelType{"test": true},
 			expectedResult: "{kubernetes_namespace_name=\"test\"}",
 			expectErr:      false,
 		},
 		{
 			name:           "Empty query and valid tenant labels",
 			query:          "",
-			tenantLabels:   map[string]bool{"test": true},
+			tenantLabels:   LabelType{"test": true},
 			expectedResult: "{kubernetes_namespace_name=\"test\"}",
 			expectErr:      false,
 		},
 		{
 			name:         "Valid query and invalid tenant labels",
 			query:        "{kubernetes_namespace_name=\"test\"}",
-			tenantLabels: map[string]bool{"invalid": true},
+			tenantLabels: LabelType{"invalid": true},
 			expectErr:    true,
 		},
 	}
@@ -56,7 +56,7 @@ func TestMatchNamespaceMatchers(t *testing.T) {
 	tests := []struct {
 		name         string
 		matchers     []*labels.Matcher
-		tenantLabels map[string]bool
+		tenantLabels LabelType
 		expectErr    bool
 	}{
 		{
@@ -68,7 +68,7 @@ func TestMatchNamespaceMatchers(t *testing.T) {
 					Value: "test",
 				},
 			},
-			tenantLabels: map[string]bool{"test": true},
+			tenantLabels: LabelType{"test": true},
 			expectErr:    false,
 		},
 		{
@@ -80,7 +80,7 @@ func TestMatchNamespaceMatchers(t *testing.T) {
 					Value: "invalid",
 				},
 			},
-			tenantLabels: map[string]bool{"test": true},
+			tenantLabels: LabelType{"test": true},
 			expectErr:    true,
 		},
 	}

@@ -142,7 +142,7 @@ func setupTestMain() (App, map[string]string) {
 	app.Cfg.Loki.TenantLabel = "tenant_id"
 
 	cmh := ConfigMapHandler{
-		labels: map[string]map[string]bool{
+		labels: LabelConfigType{
 			"user":   {"allowed_user": true, "also_allowed_user": true},
 			"group1": {"allowed_group1": true, "also_allowed_group1": true},
 			"group2": {"allowed_group2": true, "also_allowed_group2": true},

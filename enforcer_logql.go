@@ -17,7 +17,7 @@ type LogQLEnforcer struct{}
 // If the input query is empty, a new query is constructed to match provided tenant labels.
 // If the input query is non-empty, it is parsed and modified to ensure tenant isolation.
 // Returns the modified query or an error if parsing or modification fails.
-func (LogQLEnforcer) Enforce(query string, tenantLabels map[string]bool, labelMatch string) (string, error) {
+func (LogQLEnforcer) Enforce(query string, tenantLabels LabelType, labelMatch string) (string, error) {
 	log.Trace().Str("function", "enforcer").Str("query", query).Msg("input")
 	if query == "" {
 		operator := "="
@@ -61,7 +61,7 @@ func (LogQLEnforcer) Enforce(query string, tenantLabels map[string]bool, labelMa
 // It verifies that the tenant label exists in the query matchers, validating or modifying its values based on tenantLabels.
 // If the tenant label is absent in the matchers, it's added along with all values from tenantLabels.
 // Returns an error for an unauthorized namespace and nil on success.
-func matchNamespaceMatchers(queryMatches []*labels.Matcher, tenantLabels map[string]bool, labelMatch string) ([]*labels.Matcher, error) {
+func matchNamespaceMatchers(queryMatches []*labels.Matcher, tenantLabels LabelType, labelMatch string) ([]*labels.Matcher, error) {
 	foundNamespace := false
 	for _, match := range queryMatches {
 		if match.Name == labelMatch {

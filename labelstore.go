@@ -21,7 +21,7 @@ type Labelstore interface {
 	// GetLabels retrieves labels associated with the provided OAuth token.
 	// Returns a map containing the labels and a boolean indicating whether
 	// the label is cluster-wide or not.
-	GetLabels(token OAuthToken) (map[string]bool, bool)
+	GetLabels(token OAuthToken) (LabelType, bool)
 }
 
 // WithLabelStore initializes and connects to a LabelStore specified in the
@@ -45,7 +45,7 @@ func (a *App) WithLabelStore() *App {
 }
 
 type ConfigMapHandler struct {
-	labels map[string]map[string]bool
+	labels LabelConfigType
 }
 
 func (c *ConfigMapHandler) Connect(_ App) error {
@@ -58,31 +58,35 @@ func (c *ConfigMapHandler) Connect(_ App) error {
 	if err != nil {
 		return err
 	}
-	err = v.Unmarshal(&c.labels)
+	var rawlabels = Filter{};
+	err = v.Unmarshal(&rawlabels)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error while unmarshalling config file")
 		return err
 	}
+	c.labels = rawlabels.AsMap()
+
 	v.OnConfigChange(func(e fsnotify.Event) {
 		log.Info().Str("file", e.Name).Msg("Config file changed")
 		err = v.MergeInConfig()
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error while unmarshalling config file")
 		}
-		err = v.Unmarshal(&c.labels)
+		err = v.Unmarshal(&rawlabels)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error while unmarshalling config file")
 		}
+		c.labels = rawlabels.AsMap()
 	})
 	v.WatchConfig()
 	log.Debug().Any("labels", c.labels).Msg("")
 	return nil
 }
 
-func (c *ConfigMapHandler) GetLabels(token OAuthToken) (map[string]bool, bool) {
+func (c *ConfigMapHandler) GetLabels(token OAuthToken) (LabelType, bool) {
 	username := token.PreferredUsername
 	groups := token.Groups
-	mergedNamespaces := make(map[string]bool, len(c.labels[username])*2)
+	mergedNamespaces := make(LabelType, len(c.labels[username])*2)
 	for k := range c.labels[username] {
 		mergedNamespaces[k] = true
 		if k == "#cluster-wide" {
@@ -136,7 +140,7 @@ func (m *MySQLHandler) Close() {
 	}
 }
 
-func (m *MySQLHandler) GetLabels(token OAuthToken) (map[string]bool, bool) {
+func (m *MySQLHandler) GetLabels(token OAuthToken) (LabelType, bool) {
 	tokenMap := map[string]string{
 		"email":    token.Email,
 		"username": token.PreferredUsername,
@@ -165,7 +169,7 @@ func (m *MySQLHandler) GetLabels(token OAuthToken) (map[string]bool, bool) {
 	if err != nil {
 		log.Fatal().Err(err).Str("query", m.Query).Msg("Error while querying database")
 	}
-	labels := make(map[string]bool)
+	labels := make(LabelType)
 	for res.Next() {
 		var label string
 		err = res.Scan(&label)
