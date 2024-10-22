@@ -12,17 +12,17 @@ import (
 // EnforceQL represents an interface that any query language enforcement should implement.
 // It contains a method to enforce queries based on tenant labels and label match.
 type EnforceQL interface {
-	Enforce(query string, tenantLabels LabelType, labelMatch string) (string, error)
+	Enforce(query string, tenantLabels Filter) (string, error)
 }
 
 // enforceRequest enforces the incoming HTTP request based on its method (GET or POST).
 // It delegates the enforcement to enforceGet or enforcePost functions based on the HTTP method of the request.
-func enforceRequest(r *http.Request, enforce EnforceQL, tenantLabels LabelType, labelMatch string, queryMatch string) error {
+func enforceRequest(r *http.Request, enforce EnforceQL, tenantLabels Filter, queryMatch string) error {
 	switch r.Method {
 	case http.MethodGet:
-		return enforceGet(r, enforce, tenantLabels, labelMatch, queryMatch)
+		return enforceGet(r, enforce, tenantLabels, queryMatch)
 	case http.MethodPost:
-		return enforcePost(r, enforce, tenantLabels, labelMatch, queryMatch)
+		return enforcePost(r, enforce, tenantLabels, queryMatch)
 	default:
 		return fmt.Errorf("invalid method")
 	}
@@ -30,10 +30,10 @@ func enforceRequest(r *http.Request, enforce EnforceQL, tenantLabels LabelType, 
 
 // enforceGet enforces the query parameters of the incoming GET HTTP request.
 // It modifies the request URL's query parameters to ensure they adhere to tenant labels and label match.
-func enforceGet(r *http.Request, enforce EnforceQL, tenantLabels LabelType, labelMatch string, queryMatch string) error {
+func enforceGet(r *http.Request, enforce EnforceQL, tenantFilters Filter, queryMatch string) error {
 	log.Trace().Str("kind", "urlmatch").Str("queryMatch", queryMatch).Str("query", r.URL.Query().Get("query")).Str("match[]", r.URL.Query().Get("match[]")).Msg("")
 
-	query, err := enforce.Enforce(r.URL.Query().Get(queryMatch), tenantLabels, labelMatch)
+	query, err := enforce.Enforce(r.URL.Query().Get(queryMatch), tenantFilters)
 	if err != nil {
 		return err
 	}
@@ -50,14 +50,14 @@ func enforceGet(r *http.Request, enforce EnforceQL, tenantLabels LabelType, labe
 
 // enforcePost enforces the form values of the incoming POST HTTP request.
 // It modifies the request's form values to ensure they adhere to tenant labels and label match.
-func enforcePost(r *http.Request, enforce EnforceQL, tenantLabels LabelType, labelMatch string, queryMatch string) error {
+func enforcePost(r *http.Request, enforce EnforceQL, tenantFilters Filter, queryMatch string) error {
 	if err := r.ParseForm(); err != nil {
 		return err
 	}
 	log.Trace().Str("kind", "bodymatch").Str("queryMatch", queryMatch).Str("query", r.PostForm.Get("query")).Str("match[]", r.PostForm.Get("match[]")).Msg("")
 
 	query := r.PostForm.Get(queryMatch)
-	query, err := enforce.Enforce(query, tenantLabels, labelMatch)
+	query, err := enforce.Enforce(query, tenantFilters)
 	if err != nil {
 		return err
 	}

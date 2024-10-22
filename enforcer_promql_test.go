@@ -8,7 +8,7 @@ import (
 func Test_promqlEnforcer(t *testing.T) {
 	type args struct {
 		query        string
-		tenantLabels LabelType
+		tenantLabels Filter
 	}
 	tests := []struct {
 		name    string
@@ -20,7 +20,7 @@ func Test_promqlEnforcer(t *testing.T) {
 			name: "case 1",
 			args: args{
 				query:        "up",
-				tenantLabels: LabelType{"namespace1": true},
+				tenantLabels: Filter{"namespace": {"namespace1": true}},
 			},
 			want:    "up{namespace=\"namespace1\"}",
 			wantErr: false,
@@ -29,7 +29,7 @@ func Test_promqlEnforcer(t *testing.T) {
 			name: "case 2",
 			args: args{
 				query:        "{__name__=\"up\",namespace=\"namespace2\"}",
-				tenantLabels: LabelType{"namespace1": true},
+				tenantLabels: Filter{"namespace": {"namespace1": true}},
 			},
 			want:    "",
 			wantErr: true,
@@ -38,7 +38,7 @@ func Test_promqlEnforcer(t *testing.T) {
 			name: "case 3",
 			args: args{
 				query:        "up{namespace=\"namespace1\"}",
-				tenantLabels: LabelType{"namespace1": true, "namespace2": true},
+				tenantLabels: Filter{"namespace": {"namespace1": true, "namespace2": true}},
 			},
 			want:    "up{namespace=\"namespace1\"}",
 			wantErr: false,
@@ -47,7 +47,7 @@ func Test_promqlEnforcer(t *testing.T) {
 			name: "case 4",
 			args: args{
 				query:        "up",
-				tenantLabels: LabelType{"namespace": true, "grrr": true},
+				tenantLabels: Filter{"namespace": {"namespace": true, "grrr": true}},
 			},
 			want:    "up{namespace=~\"namespace|grrr\"}|s|up{namespace=~\"grrr|namespace\"}",
 			wantErr: false,
@@ -55,7 +55,7 @@ func Test_promqlEnforcer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PromQLEnforcer{}.Enforce(tt.args.query, tt.args.tenantLabels, "namespace")
+			got, err := PromQLEnforcer{}.Enforce(tt.args.query, tt.args.tenantLabels)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("promqlEnforcer() error = %v, wantErr %v", err, tt.wantErr)
 				return

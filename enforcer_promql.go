@@ -17,39 +17,44 @@ type PromQLEnforcer struct{}
 // Enforce enhances a given PromQL query string with additional label matchers,
 // ensuring that the query complies with the allowed tenant labels and specified label match.
 // It returns the enhanced query or an error if the query cannot be parsed or is not compliant.
-func (PromQLEnforcer) Enforce(query string, allowedTenantLabels LabelType, labelMatch string) (string, error) {
+func (PromQLEnforcer) Enforce(query string, allowedTenantFilters Filter) (string, error) {
 	log.Trace().Str("function", "enforcer").Str("query", query).Msg("input")
 	if query == "" {
-		operator := "="
-		if len(allowedTenantLabels) > 1 {
-			operator = "=~"
+		query_args := []string{}
+		for labelMatch, allowedTenantLabels := range allowedTenantFilters {
+			operator := "="
+			if len(allowedTenantLabels) > 1 {
+				operator = "=~"
+			}
+			query_args = append(query_args, fmt.Sprintf("%s%s\"%s\"",
+				labelMatch,
+				operator,
+				strings.Join(MapKeysToArray(allowedTenantLabels),
+					"|")))
 		}
-		query = fmt.Sprintf("{%s%s\"%s\"}",
-			labelMatch,
-			operator,
-			strings.Join(MapKeysToArray(allowedTenantLabels),
-				"|"))
+		query = fmt.Sprintf("{%s}", strings.Join(query_args, ","))
 	}
 	log.Trace().Str("function", "enforcer").Str("query", query).Msg("enforcing")
 	expr, err := parser.ParseExpr(query)
 	if err != nil {
 		return "", err
 	}
+	for labelMatch, allowedTenantLabels := range allowedTenantFilters {
+		queryLabels, err := extractLabelsAndValues(expr)
+		if err != nil {
+			return "", err
+		}
 
-	queryLabels, err := extractLabelsAndValues(expr)
-	if err != nil {
-		return "", err
-	}
+		tenantLabels, err := enforceLabels(queryLabels, allowedTenantLabels, labelMatch)
+		if err != nil {
+			return "", err
+		}
 
-	tenantLabels, err := enforceLabels(queryLabels, allowedTenantLabels, labelMatch)
-	if err != nil {
-		return "", err
-	}
-
-	labelEnforcer := createEnforcer(tenantLabels, labelMatch)
-	err = labelEnforcer.EnforceNode(expr)
-	if err != nil {
-		return "", err
+		labelEnforcer := createEnforcer(tenantLabels, labelMatch)
+		err = labelEnforcer.EnforceNode(expr)
+		if err != nil {
+			return "", err
+		}
 	}
 	log.Trace().Str("function", "enforcer").Str("query", expr.String()).Msg("enforcing")
 	return expr.String(), nil
@@ -78,7 +83,7 @@ func enforceLabels(queryLabels map[string]string, allowedTenantLabels LabelType,
 	if _, ok := queryLabels[labelMatch]; ok {
 		ok, tenantLabels := checkLabels(queryLabels, allowedTenantLabels, labelMatch)
 		if !ok {
-			return nil, fmt.Errorf("user not allowed with namespace %s", tenantLabels[0])
+			return nil, fmt.Errorf("user not allowed with %s %s", labelMatch, tenantLabels[0])
 		}
 		return tenantLabels, nil
 	}

@@ -156,7 +156,7 @@ func handler(matchWord string, enforcer EnforceQL, tl string, dsURL string, tls 
 			return
 		}
 
-		err = enforceRequest(r, enforcer, labels, tl, matchWord)
+		err = enforceRequest(r, enforcer, labels, matchWord)
 		if err != nil {
 			logAndWriteError(w, http.StatusForbidden, err, "")
 			return

@@ -142,10 +142,10 @@ func setupTestMain() (App, map[string]string) {
 	app.Cfg.Loki.TenantLabel = "tenant_id"
 
 	cmh := ConfigMapHandler{
-		labels: LabelConfigType{
-			"user":   {"allowed_user": true, "also_allowed_user": true},
-			"group1": {"allowed_group1": true, "also_allowed_group1": true},
-			"group2": {"allowed_group2": true, "also_allowed_group2": true},
+		labels: ACLs{
+			"user":   {"tenant_id": {"allowed_user": true, "also_allowed_user": true}},
+			"group1": {"tenant_id": {"allowed_group1": true, "also_allowed_group1": true}},
+			"group2": {"tenant_id": {"allowed_group2": true, "also_allowed_group2": true}},
 		},
 	}
 
@@ -217,7 +217,7 @@ func Test_reverseProxy(t *testing.T) {
 			setAuthorization: true,
 			URL:              "/api/v1/query_range?query=up{tenant_id=\"forbidden_tenant\"}",
 			expectedStatus:   http.StatusForbidden,
-			expectedBody:     "user not allowed with namespace forbidden_tenant\n",
+			expectedBody:     "user not allowed with tenant_id forbidden_tenant\n",
 		},
 		{
 			name:             "Not_a_User,_accessing_forbidden_tenant",

@@ -11,28 +11,28 @@ func TestLogqlEnforcer(t *testing.T) {
 	tests := []struct {
 		name           string
 		query          string
-		tenantLabels   LabelType
+		tenantLabels   Filter
 		expectedResult string
 		expectErr      bool
 	}{
 		{
 			name:           "Valid query and tenant labels",
 			query:          "{kubernetes_namespace_name=\"test\"}",
-			tenantLabels:   LabelType{"test": true},
+			tenantLabels:   Filter{"kubernetes_namespace_name": {"test": true}},
 			expectedResult: "{kubernetes_namespace_name=\"test\"}",
 			expectErr:      false,
 		},
 		{
 			name:           "Empty query and valid tenant labels",
 			query:          "",
-			tenantLabels:   LabelType{"test": true},
+			tenantLabels:   Filter{"kubernetes_namespace_name": {"test": true}},
 			expectedResult: "{kubernetes_namespace_name=\"test\"}",
 			expectErr:      false,
 		},
 		{
 			name:         "Valid query and invalid tenant labels",
 			query:        "{kubernetes_namespace_name=\"test\"}",
-			tenantLabels: LabelType{"invalid": true},
+			tenantLabels: Filter{"kubernetes_namespace_name": {"invalid": true}},
 			expectErr:    true,
 		},
 	}
@@ -41,7 +41,7 @@ func TestLogqlEnforcer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := enforcer.Enforce(tt.query, tt.tenantLabels, "kubernetes_namespace_name")
+			result, err := enforcer.Enforce(tt.query, tt.tenantLabels)
 			if tt.expectErr {
 				assert.Error(t, err)
 			} else {

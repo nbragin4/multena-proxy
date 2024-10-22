@@ -279,7 +279,7 @@ rbac-collector:
   enabled: true 
 ```
 
-#### b. MySQL Provider
+#### b. MySQL Provider (disabled in code)
 
 - Performs a custom query against a MySQL database to retrieve allowed tenant labels dynamically for a specified
   user/group.

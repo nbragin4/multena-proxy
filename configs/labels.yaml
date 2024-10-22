@@ -1,8 +1,11 @@
 group1:
-  - '#cluster-wide' # this grants the group to skip enforcement
+  namespace:
+    - '#cluster-wide' # this grants the group to skip enforcement
 user1:
-  - hogarama # single namespace
+  namespace:
+    - hogarama # single namespace
 user3:
-  - grafana # multi namespace
-  - opernshift-logging
-  - opernshift-monitoring
+  namespace:
+    - grafana # multi namespace
+    - opernshift-logging
+    - opernshift-monitoring

@@ -84,7 +84,7 @@ func parseJwtToken(tokenString string, a *App) (OAuthToken, *jwt.Token, error) {
 // It checks if the user is an admin and skips label enforcement if true.
 // Returns a map representing valid labels, a boolean indicating whether label enforcement should be skipped,
 // and any error that occurred during validation.
-func validateLabels(token OAuthToken, a *App) (LabelType, bool, error) {
+func validateLabels(token OAuthToken, a *App) (Filter, bool, error) {
 	if isAdmin(token, a) {
 		log.Debug().Str("user", token.PreferredUsername).Bool("Admin", true).Msg("Skipping label enforcement")
 		return nil, true, nil

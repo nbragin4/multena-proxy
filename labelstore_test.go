@@ -8,12 +8,12 @@ import (
 
 func TestGetLabelsCM(t *testing.T) {
 	cmh := ConfigMapHandler{
-		labels: LabelConfigType{
-			"user1":      {"u1": true, "u2": true},
-			"user2":      {"u3": true, "u4": true},
-			"group1":     {"g1": true, "g2": true},
-			"group2":     {"g3": true, "g4": true},
-			"adminGroup": {"#cluster-wide": true, "g4": true},
+		labels: ACLs{
+			"user1":      {"namespace": {"u1": true, "u2": true}},
+			"user2":      {"namespace": {"u3": true, "u4": true}},
+			"group1":     {"namespace": {"g1": true, "g2": true}},
+			"group2":     {"namespace": {"g3": true, "g4": true}},
+			"adminGroup": {"namespace": {"#cluster-wide": true, "g4": true}},
 		},
 	}
 
@@ -21,47 +21,55 @@ func TestGetLabelsCM(t *testing.T) {
 		name     string
 		username string
 		groups   []string
-		expected LabelType
+		expected Filter
 		skip     bool
 	}{
 		{
 			name:     "User with groups",
 			username: "user1",
 			groups:   []string{"group1", "group2"},
-			expected: LabelType{
-				"u1": true,
-				"u2": true,
-				"g1": true,
-				"g2": true,
-				"g3": true,
-				"g4": true,
+			expected: Filter{
+				"namespace": {
+					"u1": true,
+					"u2": true,
+					"g1": true,
+					"g2": true,
+					"g3": true,
+					"g4": true,
+				},
 			},
 		},
 		{
 			name:     "User without groups",
 			username: "user2",
 			groups:   []string{},
-			expected: LabelType{
-				"u3": true,
-				"u4": true,
+			expected: Filter{
+				"namespace": {
+					"u3": true,
+					"u4": true,
+				},
 			},
 		},
 		{
 			name:     "Non-existent user",
 			username: "user3",
 			groups:   []string{"group1"},
-			expected: LabelType{
-				"g1": true,
-				"g2": true,
+			expected: Filter{
+				"namespace": {
+					"g1": true,
+					"g2": true,
+				},
 			},
 		},
 		{
 			name:     "Non-existent group",
 			username: "user1",
 			groups:   []string{"group3"},
-			expected: LabelType{
-				"u1": true,
-				"u2": true,
+			expected: Filter{
+				"namespace": {
+					"u1": true,
+					"u2": true,
+				},
 			},
 		},
 		{

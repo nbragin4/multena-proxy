@@ -17,14 +17,18 @@ type LogQLEnforcer struct{}
 // If the input query is empty, a new query is constructed to match provided tenant labels.
 // If the input query is non-empty, it is parsed and modified to ensure tenant isolation.
 // Returns the modified query or an error if parsing or modification fails.
-func (LogQLEnforcer) Enforce(query string, tenantLabels LabelType, labelMatch string) (string, error) {
+func (LogQLEnforcer) Enforce(query string, tenantFilters Filter) (string, error) {
 	log.Trace().Str("function", "enforcer").Str("query", query).Msg("input")
 	if query == "" {
-		operator := "="
-		if len(tenantLabels) > 1 {
-			operator = "=~"
+		query_args := []string{}
+		for labelMatch, tenantLabels := range tenantFilters {
+			operator := "="
+			if len(tenantLabels) > 1 {
+				operator = "=~"
+			}
+			query_args = append(query_args, fmt.Sprintf("%s%s\"%s\"", labelMatch, operator, strings.Join(MapKeysToArray(tenantLabels), "|")))
 		}
-		query = fmt.Sprintf("{%s%s\"%s\"}", labelMatch, operator, strings.Join(MapKeysToArray(tenantLabels), "|"))
+		query = fmt.Sprintf("{%s}", strings.Join(query_args, ","))
 		log.Trace().Str("function", "enforcer").Str("query", query).Msg("enforcing")
 		return query, nil
 	}
@@ -35,25 +39,28 @@ func (LogQLEnforcer) Enforce(query string, tenantLabels LabelType, labelMatch st
 		return "", err
 	}
 
-	errMsg := error(nil)
+	for labelMatch, tenantLabels := range tenantFilters {
 
-	expr.Walk(func(expr interface{}) {
-		switch labelExpression := expr.(type) {
-		case *logqlv2.StreamMatcherExpr:
-			matchers, err := matchNamespaceMatchers(labelExpression.Matchers(), tenantLabels, labelMatch)
-			if err != nil {
-				errMsg = err
-				return
+		errMsg := error(nil)
+
+		expr.Walk(func(expr interface{}) {
+			switch labelExpression := expr.(type) {
+			case *logqlv2.StreamMatcherExpr:
+				matchers, err := matchNamespaceMatchers(labelExpression.Matchers(), tenantLabels, labelMatch)
+				if err != nil {
+					errMsg = err
+					return
+				}
+				labelExpression.SetMatchers(matchers)
+			default:
+				// Do nothing
 			}
-			labelExpression.SetMatchers(matchers)
-		default:
-			// Do nothing
+		})
+		if errMsg != nil {
+			return "", errMsg
 		}
-	})
-	if errMsg != nil {
-		return "", errMsg
+		log.Trace().Str("function", "enforcer").Str("query", expr.String()).Msg("enforcing")
 	}
-	log.Trace().Str("function", "enforcer").Str("query", expr.String()).Msg("enforcing")
 	return expr.String(), nil
 }
 

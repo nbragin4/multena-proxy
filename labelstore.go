@@ -1,15 +1,9 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
-	"os"
-	"strings"
-
 	"github.com/rs/zerolog/log"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/go-sql-driver/mysql"
 	"github.com/spf13/viper"
 )
 
@@ -21,7 +15,7 @@ type Labelstore interface {
 	// GetLabels retrieves labels associated with the provided OAuth token.
 	// Returns a map containing the labels and a boolean indicating whether
 	// the label is cluster-wide or not.
-	GetLabels(token OAuthToken) (LabelType, bool)
+	GetLabels(token OAuthToken) (Filter, bool)
 }
 
 // WithLabelStore initializes and connects to a LabelStore specified in the
@@ -32,8 +26,8 @@ func (a *App) WithLabelStore() *App {
 	switch a.Cfg.Web.LabelStoreKind {
 	case "configmap":
 		a.LabelStore = &ConfigMapHandler{}
-	case "mysql":
-		a.LabelStore = &MySQLHandler{}
+	// case "mysql":
+	// 	a.LabelStore = &MySQLHandler{}
 	default:
 		log.Fatal().Str("type", a.Cfg.Web.LabelStoreKind).Msg("Unknown label store type")
 	}
@@ -45,7 +39,28 @@ func (a *App) WithLabelStore() *App {
 }
 
 type ConfigMapHandler struct {
-	labels LabelConfigType
+	labels ACLs
+}
+
+type ConfigMapACLs map[Identifier]map[LabelKey][]LabelVal
+
+func (c ConfigMapACLs) AsMap() ACLs {
+	hf := make(ACLs)
+
+	// Convert ConfigMapACLs to ACLs
+	for id, filters := range c {
+		idMap := make(map[LabelKey]map[LabelVal]bool)
+		for key, values := range filters {
+			innerMap := make(LabelType)
+			for _, v := range values {
+				innerMap[v] = true // Set bool value to true
+			}
+			idMap[key] = innerMap
+		}
+		hf[id] = idMap
+	}
+
+	return hf
 }
 
 func (c *ConfigMapHandler) Connect(_ App) error {
@@ -58,7 +73,8 @@ func (c *ConfigMapHandler) Connect(_ App) error {
 	if err != nil {
 		return err
 	}
-	var rawlabels = Filter{};
+	// var rawlabels = map[LabelKey][]LabelVal{}
+	var rawlabels = ConfigMapACLs{}
 	err = v.Unmarshal(&rawlabels)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error while unmarshalling config file")
@@ -83,100 +99,33 @@ func (c *ConfigMapHandler) Connect(_ App) error {
 	return nil
 }
 
-func (c *ConfigMapHandler) GetLabels(token OAuthToken) (LabelType, bool) {
+func (c *ConfigMapHandler) GetLabels(token OAuthToken) (Filter, bool) {
 	username := token.PreferredUsername
 	groups := token.Groups
-	mergedNamespaces := make(LabelType, len(c.labels[username])*2)
-	for k := range c.labels[username] {
-		mergedNamespaces[k] = true
-		if k == "#cluster-wide" {
-			return nil, true
+	mergedNamespaces := make(Filter)
+	for label, values := range c.labels[username] {
+		if _, ok := mergedNamespaces[label]; !ok {
+			mergedNamespaces[label] = make(LabelType)
 		}
-	}
-	for _, group := range groups {
-		for k := range c.labels[group] {
-			mergedNamespaces[k] = true
-			if k == "#cluster-wide" {
+		for value := range values {
+			mergedNamespaces[label][value] = true
+			if value == "#cluster-wide" {
 				return nil, true
 			}
 		}
 	}
+	for _, group := range groups {
+		for label, values := range c.labels[group] {
+			if _, ok := mergedNamespaces[label]; !ok {
+				mergedNamespaces[label] = make(LabelType)
+			}
+			for value := range values {
+				mergedNamespaces[label][value] = true
+				if value == "#cluster-wide" {
+					return nil, true
+				}
+			}
+		}
+	}
 	return mergedNamespaces, false
-}
-
-type MySQLHandler struct {
-	DB       *sql.DB
-	Query    string
-	TokenKey string
-}
-
-func (m *MySQLHandler) Connect(a App) error {
-	m.TokenKey = a.Cfg.Db.TokenKey
-	m.Query = a.Cfg.Db.Query
-	password, err := os.ReadFile(a.Cfg.Db.PasswordPath)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Could not read db password")
-	}
-	cfg := mysql.Config{
-		User:                 a.Cfg.Db.User,
-		Passwd:               string(password),
-		Net:                  "tcp",
-		AllowNativePasswords: true,
-		Addr:                 fmt.Sprintf("%s:%d", a.Cfg.Db.Host, a.Cfg.Db.Port),
-		DBName:               a.Cfg.Db.DbName,
-	}
-	// Get a database handle.
-	m.DB, err = sql.Open("mysql", cfg.FormatDSN())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error opening DB connection")
-	}
-	return nil
-}
-
-func (m *MySQLHandler) Close() {
-	err := m.DB.Close()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error closing DB connection")
-	}
-}
-
-func (m *MySQLHandler) GetLabels(token OAuthToken) (LabelType, bool) {
-	tokenMap := map[string]string{
-		"email":    token.Email,
-		"username": token.PreferredUsername,
-		"groups":   strings.Join(token.Groups, ","),
-	}
-
-	value, ok := tokenMap[m.TokenKey]
-	if !ok {
-		log.Fatal().Str("property", m.TokenKey).Msg("Unsupported token property")
-		return nil, false
-	}
-	n := strings.Count(m.Query, "?")
-
-	var params []any
-	for i := 0; i < n; i++ {
-		params = append(params, value)
-	}
-
-	res, err := m.DB.Query(m.Query, params...)
-	defer func(res *sql.Rows) {
-		err := res.Close()
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error closing DB result")
-		}
-	}(res)
-	if err != nil {
-		log.Fatal().Err(err).Str("query", m.Query).Msg("Error while querying database")
-	}
-	labels := make(LabelType)
-	for res.Next() {
-		var label string
-		err = res.Scan(&label)
-		labels[label] = true
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error scanning DB result")
-		}
-	}
-	return labels, false
 }
