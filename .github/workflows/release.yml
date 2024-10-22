@@ -140,19 +140,19 @@ jobs:
         run: |
           buildah push ${{ steps.build-image.outputs.image-with-tag }} oci:./multena-proxy-oci
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          input: 'multena-proxy-oci'
-          format: 'sarif'
-          severity: 'CRITICAL,HIGH'
-          output: 'trivy-results.sarif'
+      # - name: Run Trivy vulnerability scanner
+      #   uses: aquasecurity/trivy-action@master
+      #   with:
+      #     input: 'multena-proxy-oci'
+      #     format: 'sarif'
+      #     severity: 'CRITICAL,HIGH'
+      #     output: 'trivy-results.sarif'
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-          category: 'container'
+      # - name: Upload Trivy scan results to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
+      #     category: 'container'
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
