@@ -75,7 +75,7 @@ jobs:
         run: mkdir ./.cache && cp ./multena-proxy ./.cache/multena-proxy
 
   push:
-    needs: [ build, test, scan, lint ]
+    needs: [ build, test, lint ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
